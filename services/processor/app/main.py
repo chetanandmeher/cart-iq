@@ -1,13 +1,14 @@
 """
 CartIQ Stream Processor
 Consumes events from Kafka and writes aggregates to Redis.
-Uses kafka-python (pure Python, no C compilation needed).
 """
 
 import json
 import logging
-import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from kafka import KafkaConsumer
+from kafka.errors import NoBrokersAvailable
 from app.config import settings
 from app.aggregators import (
     update_revenue,
@@ -25,7 +26,6 @@ logger = logging.getLogger(__name__)
 
 
 def process_event(event: dict):
-    """Process a single event — update all Redis aggregates."""
     event_type = event.get("event_type", "unknown")
     user_id = event.get("user_id", "unknown")
     logger.info(f"Processing [{event_type}] for user {user_id}")
@@ -37,27 +37,31 @@ def process_event(event: dict):
     track_recent_events(event)
 
 
-from concurrent.futures import ThreadPoolExecutor
+def create_consumer(retries: int = 10, delay: int = 5) -> KafkaConsumer:
+    """Try connecting to Kafka with retries."""
+    for attempt in range(1, retries + 1):
+        try:
+            logger.info(f"Connecting to Kafka (attempt {attempt}/{retries})...")
+            consumer = KafkaConsumer(
+                settings.kafka_topic,
+                bootstrap_servers=settings.kafka_bootstrap_servers,
+                group_id="cartiq-processor",
+                auto_offset_reset="earliest",
+                enable_auto_commit=True,
+                value_deserializer=lambda b: json.loads(b.decode("utf-8")),
+            )
+            logger.info("✅ Connected to Kafka successfully.")
+            return consumer
+        except NoBrokersAvailable:
+            logger.warning(f"Kafka not ready. Retrying in {delay}s...")
+            time.sleep(delay)
+    raise RuntimeError("Could not connect to Kafka after retries.")
+
 
 def run_consumer():
-    """Start Kafka consumer loop with parallel thread pool."""
-    logger.info(f"Connecting to Kafka at {settings.kafka_bootstrap_servers}")
-    logger.info(f"Subscribing to topic: {settings.kafka_topic}")
-
-    consumer = KafkaConsumer(
-        settings.kafka_topic,
-        bootstrap_servers=settings.kafka_bootstrap_servers,
-        group_id="cartiq-processor",
-        auto_offset_reset="earliest",
-        enable_auto_commit=True,
-        value_deserializer=lambda b: json.loads(b.decode("utf-8")),
-    )
-
-    # Use a thread pool to handle updates in parallel (mostly I/O bound on Redis)
-    # 20 workers allows significant parallel throughput
+    consumer = create_consumer(retries=10, delay=5)
     executor = ThreadPoolExecutor(max_workers=20)
-    
-    logger.info("✅ High-throughput Consumer started (20 threads) — waiting for events...")
+    logger.info("🚀 Consumer started — waiting for events...")
 
     for message in consumer:
         try:

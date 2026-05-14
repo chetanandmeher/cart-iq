@@ -8,20 +8,28 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/events", status_code=202)
-async def ingest_event(event: CartEvent):
-    success = await publish_event(event.dict())
+from typing import Union, List
 
-    if not success:
+@router.post("/events", status_code=202)
+async def ingest_event(event_data: Union[CartEvent, List[CartEvent]]):
+    events = event_data if isinstance(event_data, list) else [event_data]
+    
+    failed_count = 0
+    for event in events:
+        success = await publish_event(event.dict())
+        if not success:
+            failed_count += 1
+
+    if failed_count == len(events):
         raise HTTPException(
             status_code=500,
-            detail="Failed to publish event to Kafka"
+            detail="Failed to publish all events to Kafka"
         )
 
     return {
         "status": "accepted",
-        "event_id": event.event_id,
-        "event_type": event.event_type,
+        "processed": len(events),
+        "failed": failed_count
     }
 
 

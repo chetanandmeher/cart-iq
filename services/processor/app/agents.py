@@ -9,6 +9,7 @@ from app.aggregators import (
     update_top_products,
     update_event_counts,
     update_active_users,
+    track_recent_events,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,10 +30,11 @@ async def process_event(stream):
             event = json.loads(raw_event)
             logger.info(f"Processing event: {event.get('event_type')} for user {event.get('user_id')}")
 
-            await update_event_counts(event)
-            await update_active_users(event)
-            await update_revenue(event)
-            await update_top_products(event)
+            update_event_counts(event)
+            update_active_users(event)
+            update_revenue(event)
+            update_top_products(event)
+            track_recent_events(event)
 
         except Exception as e:
             logger.error(f"Failed to process event: {e}")
