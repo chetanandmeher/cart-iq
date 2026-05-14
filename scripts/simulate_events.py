@@ -48,6 +48,7 @@ def send_event(event: dict):
     try:
         response = requests.post(INGESTION_URL, json=event, timeout=5)
         if response.status_code == 202:
+            print(f"  ✅  [{event['event_type']:18s}] {event['product_name']:20s} (user: {event['user_id']})")
             return True
         return False
     except:
