@@ -99,8 +99,8 @@ def main():
             else:
                 total_failed += 1
 
-            # Randomize delay: 0.3s to 1.5s between events
-            delay = random.uniform(0.3, 1.5)
+            # High speed delay: 0.01s to 0.1s between events
+            delay = random.uniform(0.01, 0.1)
             time.sleep(delay)
 
     except KeyboardInterrupt:

@@ -163,7 +163,7 @@ cartiq/
 - [x] Fix pie chart hardcoded center text (`18k` → real total)
 - [x] README with architecture diagram
 - [x] `.gitignore`
-- [ ] Push to GitHub
+- [x] Push to GitHub
 
 ---
 
