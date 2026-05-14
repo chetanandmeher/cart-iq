@@ -127,35 +127,42 @@ cartiq/
 - [x] Dockerfile for ingestion service
 - [x] Test: send events via Swagger UI
 
-### Phase 3 — Stream Processor
-- [ ] `config.py` — Kafka + Redis config
-- [ ] `agents.py` — Faust agents consuming events
-- [ ] `aggregators.py` — Revenue, top products, abandonment rate
-- [ ] `main.py` — Faust app entry point
+### Phase 3 — Stream Processor ✅
+- [x] `config.py` — Kafka + Redis config
+- [x] `enums.py` — EventType and RedisKey enums
+- [x] `agents.py` — Faust agents consuming events
+- [x] `aggregators.py` — Revenue, top products, event counts, active users
+- [x] `main.py` — Faust app entry point
 - [ ] Dockerfile for processor
-- [ ] Test: verify aggregates appear in Redis
+- [x] Test: verify aggregates appear in Redis
 
-### Phase 4 — Analytics Service
-- [ ] `models.py` — SQLAlchemy models for raw events
-- [ ] `schemas.py` — Response models
-- [ ] `routes.py` — GET /analytics/revenue, /analytics/top-products, etc.
-- [ ] `main.py` — FastAPI app
+### Phase 4 — Analytics Service ✅
+- [x] `enums.py` — EventType and RedisKey enums
+- [x] `schemas.py` — Response models
+- [x] `routes.py` — GET /analytics/revenue, /analytics/top-products, etc.
+- [x] `main.py` — FastAPI app
 - [ ] Dockerfile for analytics service
-- [ ] Test: query analytics via Swagger UI
+- [x] Test: query analytics via Swagger UI
 
-### Phase 5 — Dashboard
-- [ ] Setup React + TypeScript project
-- [ ] KPI cards (revenue, active users, failed payments)
-- [ ] Live event feed
-- [ ] Revenue chart (recharts)
-- [ ] Top products chart
-- [ ] Auto-refresh every 5 seconds
+### Phase 5 — Dashboard ✅
+- [x] Setup React + TypeScript project (Vite + Tailwind + Framer Motion + Recharts)
+- [x] KPI cards (revenue, active users, total orders, failed payments)
+- [x] Live event feed (served by backend Redis list `recent_events`)
+- [x] Revenue area chart (Recharts, backed by backend `revenue_history`)
+- [x] Top products bar chart + Event breakdown pie chart
+- [x] Auto-refresh every 5 seconds
+- [x] Sidebar + TopBar navigation shell
+- [x] Glassmorphism dark-mode design system (TailwindCSS)
+- [x] Error state + Loading state handling
 
 ### Phase 6 — Integration & Polish
-- [ ] Full docker-compose with all services
-- [ ] Event simulator script (generates fake events for demo)
-- [ ] README with architecture diagram
-- [ ] `.gitignore`
+- [x] Full docker-compose with all services (Kafka, Zookeeper, PG, Redis, Ingestion, Processor, Analytics)
+- [x] Dockerfile for `services/processor`
+- [x] Dockerfile for `services/analytics`
+- [x] Event simulator script (generates fake events for demo)
+- [x] Fix pie chart hardcoded center text (`18k` → real total)
+- [x] README with architecture diagram
+- [x] `.gitignore`
 - [ ] Push to GitHub
 
 ---
@@ -168,6 +175,11 @@ cartiq/
 | 12 May 2026 | Added separate `.env` inside `services/ingestion/` | Local dev uses `localhost:29092`, Docker uses `kafka:9092` |
 | 12 May 2026 | Kafka docker-compose updated with two listeners (29092 for local, 9092 for Docker) | Kafka advertises internal hostname, local app can't resolve `kafka:9092` |
 | 12 May 2026 | `kafka_producer.py` — lazy producer init + custom datetime serializer | Producer was created before `.env` loaded; datetime not JSON serializable by default |
+| 14 May 2026 | Dashboard rebuilt from scratch using Vite + React 19 + TailwindCSS | Replaced old dashboard; new design uses glassmorphism dark-mode theme |
+| 14 May 2026 | Dashboard polls `GET /api/v1/analytics/dashboard` every 5s | Single aggregated endpoint is more efficient than 4 separate calls |
+| 14 May 2026 | Live feed uses diff-based detection (ref vs current counts) | Avoids fake event generation; reflects real backend changes |
+| 14 May 2026 | Analytics API CORS updated to allow `http://localhost:5173` | Required for local dev dashboard to call the backend without CORS errors |
+| 14 May 2026 | Moved Live Feed & Revenue History to Backend | Frontend was doing synthetic diffs; processor now tracks `recent_events` and `revenue_history` in Redis to support page reloads. |
 
 ---
 

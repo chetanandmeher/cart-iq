@@ -30,8 +30,23 @@ class ActiveUsersResponse(BaseModel):
     window: str = "last 5 minutes"
 
 
+class FeedEvent(BaseModel):
+    id: str
+    type: str
+    title: str
+    subtitle: str
+    time: str
+
+
+class RevenueHistoryPoint(BaseModel):
+    name: str
+    revenue: float
+
+
 class DashboardResponse(BaseModel):
     revenue: RevenueResponse
     top_products: TopProductsResponse
     event_counts: EventCountsResponse
     active_users: ActiveUsersResponse
+    recent_events: List[FeedEvent] = []
+    revenue_history: List[RevenueHistoryPoint] = []

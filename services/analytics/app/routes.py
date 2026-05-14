@@ -63,6 +63,8 @@ async def get_active_users():
     return ActiveUsersResponse(active_users=int(count or 0))
 
 
+import json
+
 @router.get("/dashboard", response_model=DashboardResponse)
 async def get_dashboard():
     revenue = await get_revenue()
@@ -70,11 +72,20 @@ async def get_dashboard():
     event_counts = await get_event_counts()
     active_users = await get_active_users()
 
+    raw_events = redis_client.lrange(RedisKey.recent_events, 0, -1)
+    recent_events = [json.loads(e) for e in raw_events] if raw_events else []
+
+    raw_history = redis_client.lrange(RedisKey.revenue_history, 0, -1)
+    revenue_history = [json.loads(h) for h in raw_history] if raw_history else []
+    revenue_history.reverse()
+
     return DashboardResponse(
         revenue=revenue,
         top_products=top_products,
         event_counts=event_counts,
         active_users=active_users,
+        recent_events=recent_events,
+        revenue_history=revenue_history,
     )
 
 
