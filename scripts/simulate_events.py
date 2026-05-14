@@ -54,39 +54,38 @@ def send_event(event: dict):
     except:
         return False
 
-def simulate_user_journey(user_id: str):
-    """Simulates a single user's path through the site."""
+def simulate_user_journey():
+    """Simulates a single user's path through the site, then picks a new user."""
     while True:
+        user_id = random.choice(USER_IDS)
         # 1. View some products
-        for _ in range(random.randint(1, 5)):
+        for _ in range(random.randint(1, 3)):
             product = random.choice(PRODUCTS)
             send_event(make_event("product_viewed", product, user_id))
-            time.sleep(random.uniform(0.1, 0.5))
+            time.sleep(random.uniform(0.05, 0.2))
 
         # 2. Maybe add to cart
-        if random.random() < 0.4:
+        if random.random() < 0.6:
             product = random.choice(PRODUCTS)
             send_event(make_event("cart_added", product, user_id))
-            time.sleep(random.uniform(0.5, 1.0))
+            time.sleep(random.uniform(0.1, 0.3))
 
             # 3. Maybe purchase
-            if random.random() < 0.3:
+            if random.random() < 0.4:
                 send_event(make_event("purchase_completed", product, user_id))
-            elif random.random() < 0.1:
-                send_event(make_event("payment_failed", product, user_id))
         
-        # Idle time between 'sessions'
-        time.sleep(random.uniform(1.0, 3.0))
+        # User 'leaves' the site, next iteration will pick a new user_id
+        time.sleep(random.uniform(0.1, 0.5))
 
 def main():
-    num_threads = 10 # Simulate 10 concurrent virtual customers per script
-    print(f"🚀 Starting CartIQ High-Scale Simulator with {num_threads} threads...")
+    # Increase to 50 concurrent threads (virtual customers)
+    num_threads = 50 
+    print(f"🚀 Starting CartIQ Mega-Scale Simulator with {num_threads} threads...")
     print(f"📍 Target: {INGESTION_URL}")
     
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        for i in range(num_threads):
-            user_id = random.choice(USER_IDS)
-            executor.submit(simulate_user_journey, user_id)
+        for _ in range(num_threads):
+            executor.submit(simulate_user_journey)
 
 if __name__ == "__main__":
     try:
