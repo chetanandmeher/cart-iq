@@ -213,7 +213,12 @@ async def stream_logs(service: str):
 @router.post("/simulator/start")
 async def start_simulator():
     try:
-        container = simulator_client.containers.get("cart_iq-simulator")
+        # Try to get the existing container (either from docker-compose or manual run)
+        try:
+            container = simulator_client.containers.get("cart_iq-simulator-1")
+        except docker_sdk.errors.NotFound:
+            container = simulator_client.containers.get("cart_iq-simulator")
+            
         if container.status == "running":
             return {"status": "already_running"}
         container.start()
@@ -225,7 +230,10 @@ async def start_simulator():
                 detach=True,
                 name="cart_iq-simulator",
                 environment={
-                    "INGESTION_URL": "http://ingestion:8000/api/v1/events"
+                    "INGESTION_URL": "http://ingestion:8000/api/v1/events",
+                    "REDIS_HOST": "redis",
+                    "REDIS_PORT": "6379",
+                    "BATCH_SIZE": "10"
                 },
                 network="cart_iq_default",
                 remove=False,
@@ -237,10 +245,15 @@ async def start_simulator():
         raise HTTPException(status_code=500, detail=f"Error: {e}")
 
 
+
 @router.post("/simulator/stop")
 async def stop_simulator():
     try:
-        container = simulator_client.containers.get("cart_iq-simulator")
+        try:
+            container = simulator_client.containers.get("cart_iq-simulator-1")
+        except docker_sdk.errors.NotFound:
+            container = simulator_client.containers.get("cart_iq-simulator")
+            
         if container.status != "running":
             return {"status": "not_running"}
         container.stop(timeout=5)
@@ -250,12 +263,14 @@ async def stop_simulator():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
 
-while
 @router.get("/simulator/status")
 async def simulator_status():
-    global simulator_process
     try:
-        container = simulator_client.containers.get("cart_iq-simulator")
+        try:
+            container = simulator_client.containers.get("cart_iq-simulator-1")
+        except docker_sdk.errors.NotFound:
+            container = simulator_client.containers.get("cart_iq-simulator")
+            
         is_running = container.status == "running"
         eps = 0
         if is_running:

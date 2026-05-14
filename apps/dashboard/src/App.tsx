@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Sidebar from './components/Sidebar';
-import TopBar from './components/TopBar';
-import DashboardPage from './components/DashboardPage';
-import InfraPage from './components/InfraPage';
+import Sidebar from './layout/Sidebar';
+import TopBar from './layout/TopBar';
+import DashboardPage from './features/analytics/DashboardPage';
+import InfraPage from './features/infra/InfraPage';
 
 function App() {
   return (

@@ -35,11 +35,28 @@ flowchart TD
     Dash -->|Polls /dashboard| Analyt
 ```
 
+## 📁 Project Structure
+
+```text
+cart_iq/
+├── apps/                    # Core applications
+│   ├── analytics/           # FastAPI Analytics API
+│   ├── dashboard/           # React + TS Frontend
+│   ├── ingestion/           # FastAPI Ingest API
+│   ├── processor/           # Kafka Stream Processor
+│   └── simulator/           # Event Simulation Service
+├── docs/                    # Documentation and assets
+├── infra/                   # Infrastructure/Deployment configs
+├── tools/                   # Development utilities
+├── archive/                 # Legacy files
+└── docker-compose.yml       # Service orchestration
+```
+
 ## 🚀 Tech Stack
 
 - **Backend:** Python 3.11, FastAPI
 - **Streaming:** Apache Kafka
-- **Stream Processing:** `kafka-python` / Faust
+- **Stream Processing:** `kafka-python`
 - **Database:** PostgreSQL (raw data) + Redis (aggregates)
 - **Frontend:** React 19, TypeScript, Vite, TailwindCSS, Recharts
 - **Infrastructure:** Docker & Docker Compose
@@ -55,7 +72,7 @@ docker-compose up --build
 ### 1. Start the Frontend
 In a new terminal:
 ```bash
-cd dashboard
+cd apps/dashboard
 npm install
 npm run dev
 ```
@@ -63,7 +80,7 @@ npm run dev
 ### 2. Generate Live Data
 To populate the dashboard with synthetic live events:
 ```bash
-poetry run python scripts/simulate_events.py
+python tools/simulate_events.py
 ```
 
 ### 3. View the Dashboard

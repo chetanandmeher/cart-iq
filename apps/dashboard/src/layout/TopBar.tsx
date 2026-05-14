@@ -1,5 +1,5 @@
 
-import SimulatorControl from './SimulatorControl';
+import SimulatorControl from '../features/simulator/SimulatorControl';
 
 const TopBar = () => {
   return (
