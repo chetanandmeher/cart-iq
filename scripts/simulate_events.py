@@ -1,49 +1,38 @@
 """
-CartIQ — Event Simulator
-Sends randomized e-commerce events to the Ingestion API in a loop.
-Run this to populate the dashboard with live data.
-
-Usage:
-    python scripts/simulate_events.py
+CartIQ — High-Scale Event Simulator
+Simulates thousands of concurrent virtual customers on a large e-commerce platform.
+Uses multi-threading to stress-test the ingestion and processing pipeline.
 """
 
 import requests
 import random
 import time
 import uuid
+import threading
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 
 INGESTION_URL = "http://localhost:8001/api/v1/events"
 
+# Scale up products (100 products)
 PRODUCTS = [
-    {"name": "iPhone 15 Pro", "price": 134900},
-    {"name": "Samsung Galaxy S24", "price": 79999},
-    {"name": "Sony WH-1000XM5", "price": 29990},
-    {"name": "MacBook Air M3", "price": 114900},
-    {"name": "Nike Air Max 270", "price": 9995},
-    {"name": "Levi's 501 Jeans", "price": 4999},
-    {"name": "Kindle Paperwhite", "price": 13999},
-    {"name": "Boat Airdopes 141", "price": 1299},
-    {"name": "OnePlus 12R", "price": 39999},
-    {"name": "Canon EOS R50", "price": 64995},
+    {"name": f"Product {i:03d}", "price": random.randint(500, 150000)}
+    for i in range(1, 101)
 ]
+
+# Scale up users (1000 active users)
+USER_IDS = [f"user_{i:04d}" for i in range(1, 1001)]
 
 EVENT_TYPES = [
-    "product_viewed",   # most frequent
     "product_viewed",
-    "product_viewed",
-    "cart_added",       # medium
     "cart_added",
-    "cart_removed",     # occasional
-    "purchase_completed",  # less frequent
-    "payment_failed",   # rare
+    "cart_removed",
+    "purchase_completed",
+    "payment_failed",
 ]
 
-USER_IDS = [f"user_{i:04d}" for i in range(1, 51)]  # 50 simulated users
-
-
 def make_event(event_type: str, product: dict, user_id: str) -> dict:
-    base = {
+    return {
         "event_id": str(uuid.uuid4()),
         "event_type": event_type,
         "user_id": user_id,
@@ -54,62 +43,52 @@ def make_event(event_type: str, product: dict, user_id: str) -> dict:
         "quantity": random.randint(1, 3),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
-    return base
 
-
-def send_event(event: dict) -> bool:
+def send_event(event: dict):
     try:
-        response = requests.post(INGESTION_URL, json=event, timeout=3)
+        response = requests.post(INGESTION_URL, json=event, timeout=5)
         if response.status_code == 202:
-            print(f"  ✅  [{event['event_type']:25s}]  {event['product_name']}  (user: {event['user_id']})")
             return True
-        else:
-            print(f"  ❌  HTTP {response.status_code}: {response.text}")
-            return False
-    except requests.exceptions.ConnectionError:
-        print("  ❌  Cannot connect to Ingestion API at http://localhost:8001")
-        print("      Make sure the ingestion service is running.")
         return False
-    except Exception as e:
-        print(f"  ❌  Error: {e}")
+    except:
         return False
 
+def simulate_user_journey(user_id: str):
+    """Simulates a single user's path through the site."""
+    while True:
+        # 1. View some products
+        for _ in range(random.randint(1, 5)):
+            product = random.choice(PRODUCTS)
+            send_event(make_event("product_viewed", product, user_id))
+            time.sleep(random.uniform(0.1, 0.5))
+
+        # 2. Maybe add to cart
+        if random.random() < 0.4:
+            product = random.choice(PRODUCTS)
+            send_event(make_event("cart_added", product, user_id))
+            time.sleep(random.uniform(0.5, 1.0))
+
+            # 3. Maybe purchase
+            if random.random() < 0.3:
+                send_event(make_event("purchase_completed", product, user_id))
+            elif random.random() < 0.1:
+                send_event(make_event("payment_failed", product, user_id))
+        
+        # Idle time between 'sessions'
+        time.sleep(random.uniform(1.0, 3.0))
 
 def main():
-    print("=" * 60)
-    print("  CartIQ Event Simulator")
-    print("  Sending events to:", INGESTION_URL)
-    print("  Press Ctrl+C to stop")
-    print("=" * 60)
-
-    total_sent = 0
-    total_failed = 0
-
-    try:
-        while True:
-            event_type = random.choice(EVENT_TYPES)
-            product = random.choice(PRODUCTS)
+    num_threads = 10 # Simulate 10 concurrent virtual customers per script
+    print(f"🚀 Starting CartIQ High-Scale Simulator with {num_threads} threads...")
+    print(f"📍 Target: {INGESTION_URL}")
+    
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        for i in range(num_threads):
             user_id = random.choice(USER_IDS)
-
-            event = make_event(event_type, product, user_id)
-            success = send_event(event)
-
-            if success:
-                total_sent += 1
-            else:
-                total_failed += 1
-
-            # High speed delay: 0.01s to 0.1s between events
-            delay = random.uniform(0.01, 0.1)
-            time.sleep(delay)
-
-    except KeyboardInterrupt:
-        print("\n" + "=" * 60)
-        print(f"  Simulator stopped.")
-        print(f"  Events sent:   {total_sent}")
-        print(f"  Events failed: {total_failed}")
-        print("=" * 60)
-
+            executor.submit(simulate_user_journey, user_id)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n🛑 Simulator stopped.")
