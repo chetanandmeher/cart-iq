@@ -39,6 +39,9 @@ for i in range(100):
 # Scale up users (1000 active users)
 USER_IDS = [f"user_{i:04d}" for i in range(1, 1001)]
 
+total_sent = 0
+counter_lock = threading.Lock()
+
 def make_event(event_type: str, product: dict, user_id: str) -> dict:
     return {
         "event_id": str(uuid.uuid4()),
@@ -70,8 +73,11 @@ def batch_sender():
                 try:
                     res = requests.post(INGESTION_URL, json=batch, timeout=10)
                     if res.status_code == 202:
-                        # Batch processed
-                        pass
+                        global total_sent
+                        with counter_lock:
+                            total_sent += len(batch)
+                            if total_sent % 100 == 0:
+                                print(f"  🚀 [HEARTBEAT] Total Events Sent: {total_sent} | Queue: {event_queue.qsize()}")
                     else:
                         print(f"  ❌ Batch Failed: {res.status_code}")
                 except Exception as e:
