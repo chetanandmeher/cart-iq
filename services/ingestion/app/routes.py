@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from app.schemas import CartEvent
 from app.kafka_producer import publish_event
 
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()

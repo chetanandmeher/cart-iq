@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     postgres_db: str = "cartiq"
     postgres_user: str = "cartiq_user"
     postgres_password: str = "cartiq_pass"
+    kafka_bootstrap_servers: str = "kafka:9092"
     debug: bool = True
 
     class Config:

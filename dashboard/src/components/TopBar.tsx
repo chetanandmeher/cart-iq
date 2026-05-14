@@ -1,4 +1,6 @@
 
+import SimulatorControl from './SimulatorControl';
+
 const TopBar = () => {
   return (
     <header className="flex justify-between items-center px-6 py-4 w-full h-16 z-30 bg-surface/80 backdrop-blur-xl border-b border-white/10 shadow-sm shadow-primary/10 relative lg:static">
@@ -7,9 +9,12 @@ const TopBar = () => {
         <div className="font-bold text-lg text-primary tracking-wide">
           CartIQ
         </div>
-        <div className="flex items-center gap-2 bg-surface-container px-3 py-1 rounded-full border border-white/5">
-          <span className="flex h-2 w-2 rounded-full bg-emerald-500 pulse-emerald"></span>
-          <span className="font-label-md text-label-md text-emerald-400">Live</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-surface-container px-3 py-1 rounded-full border border-white/5 h-9">
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500 pulse-emerald"></span>
+            <span className="font-label-md text-label-md text-emerald-400">Live</span>
+          </div>
+          <SimulatorControl />
         </div>
       </div>
       <div className="flex items-center gap-6">

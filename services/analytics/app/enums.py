@@ -8,6 +8,7 @@ class RedisKey(str, Enum):
     events_total = "cartiq:events:total"
     recent_events = "cartiq:recent_events"
     revenue_history = "cartiq:revenue:history"
+    simulator_eps = "cartiq:simulator:eps"
 
 class EventType(str, Enum):
     product_viewed = "product_viewed"

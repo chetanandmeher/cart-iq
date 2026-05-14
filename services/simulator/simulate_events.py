@@ -14,14 +14,22 @@ import json
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 
+import os
+
 # Redis Setup
-redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+
+INGESTION_URL = os.getenv("INGESTION_URL", "http://localhost:8001/api/v1/events")
+
+
+
+# Redis Setup
 SIMULATOR_EPS_KEY = "cartiq:simulator:eps"
 
 start_time = time.time()
 
-
-INGESTION_URL = "http://localhost:8001/api/v1/events"
 BATCH_SIZE = 10 
 event_queue = queue.Queue()
 

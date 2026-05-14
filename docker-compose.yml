@@ -70,16 +70,34 @@ services:
     ports:
       - "8002:8000"
     environment:
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: cartiq
-      POSTGRES_USER: cartiq_user
-      POSTGRES_PASSWORD: cartiq_pass
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=cartiq
+      - POSTGRES_USER=cartiq_user
+      - POSTGRES_PASSWORD=cartiq_pass
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      - redis
       - postgres
+      - kafka
+
+  simulator:
+    build: ./services/simulator
+    container_name: cart_iq-simulator-1
+    profiles:
+      - simulator
+    environment:
+      - INGESTION_URL=http://ingestion:8000/api/v1/events
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - BATCH_SIZE=10
+    depends_on:
+      - ingestion
+      - redis
+    restart: "no"
 
 volumes:
   postgres_data:

@@ -50,3 +50,37 @@ class DashboardResponse(BaseModel):
     active_users: ActiveUsersResponse
     recent_events: List[FeedEvent] = []
     revenue_history: List[RevenueHistoryPoint] = []
+
+class RedisStats(BaseModel):
+    used_memory_human: str
+    connected_clients: int
+    total_commands_processed: int
+    keyspace_hits: int
+    keyspace_misses: int
+    hit_ratio: float
+    total_keys: int
+
+
+class KafkaTopicStats(BaseModel):
+    topic: str
+    partitions: int
+    message_count: int
+
+
+class KafkaStats(BaseModel):
+    bootstrap_servers: str
+    topics: List[KafkaTopicStats]
+    consumer_group: str
+
+
+class InfraResponse(BaseModel):
+    redis: RedisStats
+    kafka: KafkaStats
+
+class SimulatorStatus(BaseModel):
+    is_running: bool
+    events_per_second: float
+
+class SimulatorResponse(BaseModel):
+    status: str
+    message: str = ""
