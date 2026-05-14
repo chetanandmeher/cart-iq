@@ -37,8 +37,10 @@ def process_event(event: dict):
     track_recent_events(event)
 
 
+from concurrent.futures import ThreadPoolExecutor
+
 def run_consumer():
-    """Start Kafka consumer loop. Blocks forever."""
+    """Start Kafka consumer loop with parallel thread pool."""
     logger.info(f"Connecting to Kafka at {settings.kafka_bootstrap_servers}")
     logger.info(f"Subscribing to topic: {settings.kafka_topic}")
 
@@ -51,14 +53,18 @@ def run_consumer():
         value_deserializer=lambda b: json.loads(b.decode("utf-8")),
     )
 
-    logger.info("✅ Consumer started — waiting for events...")
+    # Use a thread pool to handle updates in parallel (mostly I/O bound on Redis)
+    # 20 workers allows significant parallel throughput
+    executor = ThreadPoolExecutor(max_workers=20)
+    
+    logger.info("✅ High-throughput Consumer started (20 threads) — waiting for events...")
 
     for message in consumer:
         try:
             event = message.value
-            process_event(event)
+            executor.submit(process_event, event)
         except Exception as e:
-            logger.error(f"Failed to process message: {e}")
+            logger.error(f"Failed to submit message: {e}")
 
 
 if __name__ == "__main__":

@@ -59,7 +59,13 @@ async def get_event_counts():
 
 @router.get("/active-users", response_model=ActiveUsersResponse)
 async def get_active_users():
-    count = redis_client.scard(RedisKey.active_users)
+    # 1. Clean up old users (sliding 5-minute window)
+    import time
+    five_mins_ago = time.time() - 300
+    redis_client.zremrangebyscore(RedisKey.active_users, "-inf", five_mins_ago)
+    
+    # 2. Get the count of remaining unique users
+    count = redis_client.zcard(RedisKey.active_users)
     return ActiveUsersResponse(active_users=int(count or 0))
 
 

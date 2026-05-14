@@ -51,10 +51,16 @@ def update_event_counts(event: dict):
 
 
 def update_active_users(event: dict):
-    """Track unique active users in last 5 minutes."""
+    """Track unique active users in a sliding 5-minute window."""
     user_id = event.get("user_id", "unknown")
-    redis_client.sadd(RedisKey.active_users, user_id)
-    redis_client.expire(RedisKey.active_users, 300)
+    now = datetime.now().timestamp()
+    
+    # 1. Add/Update user with current timestamp
+    redis_client.zadd(RedisKey.active_users, {user_id: now})
+    
+    # 2. Remove users who haven't been seen in the last 300 seconds
+    five_mins_ago = now - 300
+    redis_client.zremrangebyscore(RedisKey.active_users, "-inf", five_mins_ago)
 
 
 def track_recent_events(event: dict):
