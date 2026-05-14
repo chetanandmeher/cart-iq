@@ -5,7 +5,9 @@ from datetime import datetime
 
 from app.config import settings
 from app.enums import EventType, RedisKey
-
+from app.database import get_session
+from app.models import Event
+    
 logger = logging.getLogger(__name__)
 
 redis_client = redis.Redis(
@@ -95,3 +97,27 @@ def track_recent_events(event: dict):
         
         redis_client.lpush(RedisKey.recent_events, json.dumps(feed_event))
         redis_client.ltrim(RedisKey.recent_events, 0, 14) # keep last 15
+
+def save_to_db(event: dict):
+    """Persist raw event to PostgreSQL."""
+    session = get_session()
+    try:
+        db_event = Event(
+            event_id=event.get("event_id", str(__import__("uuid").uuid4())),
+            event_type=event.get("event_type", "unknown"),
+            user_id=event.get("user_id", "unknown"),
+            product_id=event.get("product_id", "unknown"),
+            product_name=event.get("product_name", "unknown"),
+            price=float(event.get("price", 0)),
+            quantity=int(event.get("quantity", 1)),
+            timestamp=datetime.utcnow(),
+            extra_data=event.get("metadata", {}),
+        )
+        session.add(db_event)
+        session.commit()
+        logger.info(f"Event saved to DB: {db_event.event_id}")
+    except Exception as e:
+        session.rollback()
+        logger.error(f"DB save failed: {e}")
+    finally:
+        session.close()

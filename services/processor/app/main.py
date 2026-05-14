@@ -1,6 +1,6 @@
 """
 CartIQ Stream Processor
-Consumes events from Kafka and writes aggregates to Redis.
+Consumes events from Kafka and writes aggregates to Redis + raw events to PostgreSQL.
 """
 
 import json
@@ -10,12 +10,14 @@ from concurrent.futures import ThreadPoolExecutor
 from kafka import KafkaConsumer
 from kafka.errors import NoBrokersAvailable
 from app.config import settings
+from app.database import init_db
 from app.aggregators import (
     update_revenue,
     update_top_products,
     update_event_counts,
     update_active_users,
     track_recent_events,
+    save_to_db,
 )
 
 logging.basicConfig(
@@ -35,10 +37,10 @@ def process_event(event: dict):
     update_revenue(event)
     update_top_products(event)
     track_recent_events(event)
+    save_to_db(event)
 
 
 def create_consumer(retries: int = 10, delay: int = 5) -> KafkaConsumer:
-    """Try connecting to Kafka with retries."""
     for attempt in range(1, retries + 1):
         try:
             logger.info(f"Connecting to Kafka (attempt {attempt}/{retries})...")
@@ -59,6 +61,7 @@ def create_consumer(retries: int = 10, delay: int = 5) -> KafkaConsumer:
 
 
 def run_consumer():
+    init_db()
     consumer = create_consumer(retries=10, delay=5)
     executor = ThreadPoolExecutor(max_workers=20)
     logger.info("🚀 Consumer started — waiting for events...")
