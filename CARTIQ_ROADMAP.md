@@ -155,7 +155,7 @@ cartiq/
 - [x] Glassmorphism dark-mode design system (TailwindCSS)
 - [x] Error state + Loading state handling
 
-### Phase 6 — Integration & Polish
+### Phase 6 — Integration & Polish ✅
 - [x] Full docker-compose with all services (Kafka, Zookeeper, PG, Redis, Ingestion, Processor, Analytics)
 - [x] Dockerfile for `services/processor`
 - [x] Dockerfile for `services/analytics`
@@ -164,6 +164,17 @@ cartiq/
 - [x] README with architecture diagram
 - [x] `.gitignore`
 - [x] Push to GitHub
+
+### Phase 7 — High-Scale Optimizations ✅
+- [x] Create `develop` branch for experimental performance work
+- [x] Implement **Event Batching** in Ingestion API (accept `List[CartEvent]`)
+- [x] Implement **Batched Simulator** (Queue-based buffering, 50-event batches)
+- [x] Implement **Parallel Processing** in Stream Processor (20-thread worker pool)
+- [x] Implement **Sliding Window Active Users** using Redis Sorted Sets (ZSET)
+- [x] Scale up data variety (**100 products**, **1000 simulated users**)
+- [x] Multi-threaded simulator (**50 concurrent** virtual customers per script)
+- [x] **Heartbeat Monitor**: Simulator prints total events sent every 100 events
+- [x] **Stable Product Pool**: UUID-fixed product IDs and realistic e-commerce names
 
 ---
 
@@ -180,8 +191,11 @@ cartiq/
 | 14 May 2026 | Live feed uses diff-based detection (ref vs current counts) | Avoids fake event generation; reflects real backend changes |
 | 14 May 2026 | Analytics API CORS updated to allow `http://localhost:5173` | Required for local dev dashboard to call the backend without CORS errors |
 | 14 May 2026 | Moved Live Feed & Revenue History to Backend | Frontend was doing synthetic diffs; processor now tracks `recent_events` and `revenue_history` in Redis to support page reloads. |
+| 14 May 2026 | **Event Batching & Parallel Processing** | Implemented high-throughput optimizations. Ingestion API now accepts batches. Processor uses 20 threads. Simulator is multi-threaded. |
+| 14 May 2026 | **Sliding Window Active Users** | Switched from Set to Sorted Set (ZSET) with timestamps for correct 5-minute windowing at scale. |
+| 14 May 2026 | **Stable IDs & Heartbeat** | Simulator now uses fixed product pool and prints heartbeat for visibility. |
 
 ---
 
 ## Resume Line (update as we build)
-> "Built CartIQ, a real-time e-commerce analytics pipeline in Python/FastAPI processing events via Apache Kafka, with stream aggregation using Faust, PostgreSQL storage, Redis caching, and a live React dashboard."
+> "Built CartIQ, a high-scale real-time e-commerce analytics pipeline processing events via Apache Kafka, with parallel 20-thread stream aggregation, sliding window Redis analytics (ZSET), batched event ingestion, and a live React dashboard."
