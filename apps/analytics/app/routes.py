@@ -1,14 +1,16 @@
 import logging
 import redis
+import asyncpg
+import json
+import time
+from datetime import datetime, timedelta
+from typing import Optional
 
 from kafka import KafkaAdminClient
-from kafka.admin import NewTopic
 import docker
 from fastapi.responses import StreamingResponse
-import time
 
-
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from app.config import settings
 from app.enums import RedisKey, EventType
 from app.schemas import (
@@ -39,6 +41,8 @@ redis_client = redis.Redis(
     port=settings.redis_port,
     decode_responses=True,
 )
+
+RESET_TIMESTAMP_KEY = "cartiq:reset:timestamp"
 
 
 @router.get("/revenue", response_model=RevenueResponse)
@@ -76,20 +80,113 @@ async def get_event_counts():
 
 @router.get("/active-users", response_model=ActiveUsersResponse)
 async def get_active_users():
-    # 1. Clean up old users (sliding 5-minute window)
-    import time
     five_mins_ago = time.time() - 300
     redis_client.zremrangebyscore(RedisKey.active_users, "-inf", five_mins_ago)
-    
-    # 2. Get the count of remaining unique users
     count = redis_client.zcard(RedisKey.active_users)
     return ActiveUsersResponse(active_users=int(count or 0))
 
 
-import json
+# ── PostgreSQL helpers ─────────────────────────────────────────────
+
+def get_period_start(period: str) -> Optional[datetime]:
+    now = datetime.utcnow()
+    if period == "today":
+        return now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "week":
+        return now - timedelta(days=7)
+    elif period == "month":
+        return now - timedelta(days=30)
+    elif period == "year":
+        return now - timedelta(days=365)
+    return None  # all time
+
+
+async def get_dashboard_from_postgres(period: str) -> DashboardResponse:
+    since = get_period_start(period)
+    conn = await asyncpg.connect(
+        host=settings.postgres_host,
+        port=settings.postgres_port,
+        database=settings.postgres_db,
+        user=settings.postgres_user,
+        password=settings.postgres_password,
+    )
+
+    # today → per hour for last 24h
+    # week  → per day for last 14 days (current + last week)
+    # month → per month for last 24 months
+    # year  → per month for current year
+    # all   → per month across all data
+
+    if period == "today":
+        bucket, fmt, limit = "hour", "%H:00", 24
+    elif period == "week":
+        bucket, fmt, limit = "day", "%a %d", 14
+    elif period == "month":
+        bucket, fmt, limit = "month", "%b %Y", 24
+    elif period == "year":
+        bucket, fmt, limit = "month", "%b %Y", 12
+    else:  # all
+        bucket, fmt, limit = "month", "%b %Y", 36
+
+    if since:
+        total_revenue = await conn.fetchval(
+            "SELECT COALESCE(SUM(price * quantity), 0) FROM events WHERE event_type = 'purchase_completed' AND timestamp >= $1", since)
+        count_rows = await conn.fetch(
+            "SELECT event_type, COUNT(*) FROM events WHERE timestamp >= $1 GROUP BY event_type", since)
+        product_rows = await conn.fetch(
+            """SELECT product_name, COUNT(*) as cnt FROM events
+               WHERE event_type = 'purchase_completed' AND timestamp >= $1
+               GROUP BY product_name ORDER BY cnt DESC LIMIT 10""", since)
+        history_rows = await conn.fetch(
+            f"""SELECT date_trunc('{bucket}', timestamp) as t, SUM(price * quantity) as rev
+               FROM events WHERE event_type = 'purchase_completed' AND timestamp >= $1
+               GROUP BY t ORDER BY t ASC LIMIT {limit}""", since)
+    else:
+        total_revenue = await conn.fetchval(
+            "SELECT COALESCE(SUM(price * quantity), 0) FROM events WHERE event_type = 'purchase_completed'")
+        count_rows = await conn.fetch(
+            "SELECT event_type, COUNT(*) FROM events GROUP BY event_type")
+        product_rows = await conn.fetch(
+            """SELECT product_name, COUNT(*) as cnt FROM events
+               WHERE event_type = 'purchase_completed'
+               GROUP BY product_name ORDER BY cnt DESC LIMIT 10""")
+        history_rows = await conn.fetch(
+            f"""SELECT date_trunc('{bucket}', timestamp) as t, SUM(price * quantity) as rev
+               FROM events WHERE event_type = 'purchase_completed'
+               GROUP BY t ORDER BY t ASC LIMIT {limit}""")
+
+    counts = {row["event_type"]: row["count"] for row in count_rows}
+    top_products = [TopProduct(product_name=r["product_name"], purchase_count=r["cnt"]) for r in product_rows]
+    revenue_history = [{"name": r["t"].strftime(fmt), "revenue": float(r["rev"])} for r in history_rows]
+
+    await conn.close()
+
+    total = sum(counts.values())
+    return DashboardResponse(
+        revenue=RevenueResponse(total_revenue=float(total_revenue or 0)),
+        top_products=TopProductsResponse(products=top_products),
+        event_counts=EventCountsResponse(
+            product_viewed=counts.get("product_viewed", 0),
+            cart_added=counts.get("cart_added", 0),
+            cart_removed=counts.get("cart_removed", 0),
+            purchase_completed=counts.get("purchase_completed", 0),
+            payment_failed=counts.get("payment_failed", 0),
+            total=total,
+        ),
+        active_users=ActiveUsersResponse(active_users=0),
+        recent_events=[],
+        revenue_history=revenue_history,
+    )
+
+
+# ── Dashboard endpoint ─────────────────────────────────────────────
 
 @router.get("/dashboard", response_model=DashboardResponse)
-async def get_dashboard():
+async def get_dashboard(period: Optional[str] = Query(default=None)):
+    if period and period in ("all", "today", "week", "month", "year"):
+        return await get_dashboard_from_postgres(period)
+
+    # No period → pure Redis (used for live polling + live session)
     revenue = await get_revenue()
     top_products = await get_top_products()
     event_counts = await get_event_counts()
@@ -110,19 +207,54 @@ async def get_dashboard():
         recent_events=recent_events,
         revenue_history=revenue_history,
     )
+
+
+# ── Reset endpoint ─────────────────────────────────────────────────
+
+@router.post("/reset")
+async def reset_dashboard():
+    keys_to_delete = [
+        RedisKey.revenue_total,
+        RedisKey.top_products,
+        RedisKey.active_users,
+        RedisKey.events_total,
+        RedisKey.recent_events,
+        RedisKey.revenue_history,
+    ]
+    for key in keys_to_delete:
+        redis_client.delete(key)
+
+    for event_type in EventType:
+        redis_client.delete(f"cartiq:events:{event_type.value}")
+
+    # Store reset timestamp so frontend can show session timer
+    redis_client.set(RESET_TIMESTAMP_KEY, str(time.time()))
+
+    logger.info("Dashboard reset: all Redis aggregates cleared")
+    return {"status": "reset", "message": "Dashboard cleared.", "reset_at": time.time()}
+
+
+# ── Session info endpoint ──────────────────────────────────────────
+
+@router.get("/session")
+async def get_session():
+    """Returns when the last reset happened."""
+    ts = redis_client.get(RESET_TIMESTAMP_KEY)
+    reset_at = float(ts) if ts else None
+    elapsed = int(time.time() - reset_at) if reset_at else None
+    return {"reset_at": reset_at, "elapsed_seconds": elapsed}
+
+
+# ── Infra ──────────────────────────────────────────────────────────
+
 @router.get("/infra", response_model=InfraResponse)
 async def get_infra():
-    # Redis stats
     info = redis_client.info()
     hits = info.get("keyspace_hits", 0)
     misses = info.get("keyspace_misses", 0)
     total = hits + misses
     hit_ratio = round(hits / total * 100, 2) if total > 0 else 0.0
-    total_keys = sum(
-        v.get("keys", 0)
-        for k, v in info.items()
-        if k.startswith("db")
-    )
+    total_keys = sum(v.get("keys", 0) for k, v in info.items() if k.startswith("db"))
 
     redis_stats = RedisStats(
         used_memory_human=info.get("used_memory_human", "0B"),
@@ -134,44 +266,31 @@ async def get_infra():
         total_keys=total_keys,
     )
 
-    # Kafka stats
     try:
-        admin = KafkaAdminClient(
-            bootstrap_servers=settings.kafka_bootstrap_servers,
-            client_id="cartiq-analytics"
-        )
+        admin = KafkaAdminClient(bootstrap_servers=settings.kafka_bootstrap_servers, client_id="cartiq-analytics")
         topic_metadata = admin.list_topics()
         topics = []
         for topic in topic_metadata:
             if not topic.startswith("__"):
                 partitions = admin.describe_topics([topic])
                 part_count = len(partitions[0].get("partitions", []))
-                topics.append(KafkaTopicStats(
-                    topic=topic,
-                    partitions=part_count,
-                    message_count=0
-                ))
+                topics.append(KafkaTopicStats(topic=topic, partitions=part_count, message_count=0))
         admin.close()
     except Exception as e:
         logger.error(f"Kafka admin error: {e}")
         topics = []
 
-    kafka_stats = KafkaStats(
-        bootstrap_servers=settings.kafka_bootstrap_servers,
-        topics=topics,
-        consumer_group="cartiq-processor"
-    )
-
+    kafka_stats = KafkaStats(bootstrap_servers=settings.kafka_bootstrap_servers, topics=topics, consumer_group="cartiq-processor")
     return InfraResponse(redis=redis_stats, kafka=kafka_stats)
 
 
+# ── Logs ───────────────────────────────────────────────────────────
+
 def get_container_logs(container_name: str, tail: int = 50):
-    """Stream logs from a Docker container."""
     try:
         client = docker.from_env()
         container = client.containers.get(container_name)
-        logs = container.logs(stream=True, follow=True, tail=tail, timestamps=True)
-        return logs
+        return container.logs(stream=True, follow=True, tail=tail, timestamps=True)
     except Exception as e:
         logger.error(f"Docker log error: {e}")
         return None
@@ -179,15 +298,9 @@ def get_container_logs(container_name: str, tail: int = 50):
 
 @router.get("/logs/{service}")
 async def stream_logs(service: str):
-    """Stream logs from Redis or Kafka container via SSE."""
-    container_map = {
-        "redis": "cart_iq-redis-1",
-        "kafka": "cart_iq-kafka-1",
-    }
-
+    container_map = {"redis": "cart_iq-redis-1", "kafka": "cart_iq-kafka-1"}
     if service not in container_map:
-        raise HTTPException(status_code=400, detail=f"Unknown service: {service}. Use 'redis' or 'kafka'")
-
+        raise HTTPException(status_code=400, detail=f"Unknown service: {service}")
     container_name = container_map[service]
 
     def log_generator():
@@ -200,25 +313,19 @@ async def stream_logs(service: str):
             if line:
                 yield f"data: {line}\n\n"
 
-    return StreamingResponse(
-        log_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        }
-    )
+    return StreamingResponse(log_generator(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
+
+# ── Simulator ──────────────────────────────────────────────────────
 
 @router.post("/simulator/start")
 async def start_simulator():
     try:
-        # Try to get the existing container (either from docker-compose or manual run)
         try:
             container = simulator_client.containers.get("cart_iq-simulator-1")
         except docker_sdk.errors.NotFound:
             container = simulator_client.containers.get("cart_iq-simulator")
-            
         if container.status == "running":
             return {"status": "already_running"}
         container.start()
@@ -226,24 +333,15 @@ async def start_simulator():
     except docker_sdk.errors.NotFound:
         try:
             simulator_client.containers.run(
-                "cart_iq-simulator",  # image name
-                detach=True,
-                name="cart_iq-simulator",
-                environment={
-                    "INGESTION_URL": "http://ingestion:8000/api/v1/events",
-                    "REDIS_HOST": "redis",
-                    "REDIS_PORT": "6379",
-                    "BATCH_SIZE": "10"
-                },
-                network="cart_iq_default",
-                remove=False,
-            )
+                "cart_iq-simulator", detach=True, name="cart_iq-simulator",
+                environment={"INGESTION_URL": "http://ingestion:8000/api/v1/events",
+                             "REDIS_HOST": "redis", "REDIS_PORT": "6379", "BATCH_SIZE": "10"},
+                network="cart_iq_default", remove=False)
             return {"status": "started"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to start: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
-
 
 
 @router.post("/simulator/stop")
@@ -253,7 +351,6 @@ async def stop_simulator():
             container = simulator_client.containers.get("cart_iq-simulator-1")
         except docker_sdk.errors.NotFound:
             container = simulator_client.containers.get("cart_iq-simulator")
-            
         if container.status != "running":
             return {"status": "not_running"}
         container.stop(timeout=5)
@@ -263,6 +360,7 @@ async def stop_simulator():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
 
+
 @router.get("/simulator/status")
 async def simulator_status():
     try:
@@ -270,7 +368,6 @@ async def simulator_status():
             container = simulator_client.containers.get("cart_iq-simulator-1")
         except docker_sdk.errors.NotFound:
             container = simulator_client.containers.get("cart_iq-simulator")
-            
         is_running = container.status == "running"
         eps = 0
         if is_running:
@@ -278,11 +375,7 @@ async def simulator_status():
                 eps = float(redis_client.get("cartiq:simulator:eps") or 0)
             except:
                 pass
-        return {
-            "status": "running" if is_running else "stopped",
-            "is_running": is_running,
-            "eps": eps
-        }
+        return {"status": "running" if is_running else "stopped", "is_running": is_running, "eps": eps}
     except docker_sdk.errors.NotFound:
         return {"status": "stopped", "is_running": False, "eps": 0}
     except Exception as e:
