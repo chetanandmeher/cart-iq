@@ -102,7 +102,7 @@ const DashboardPage = () => {
     setFeedEvents(data.recent_events || []);
   };
 
-  const applyWithDelta = (redisNow: ApiPayload) => {
+  const applyWithDelta = (redisNow: ApiPayload, currentPeriod: Period) => {
     if (!dbBase.current || !redisSnapshot.current) return;
     const snap = redisSnapshot.current;
     const db = dbBase.current;
@@ -115,20 +115,41 @@ const DashboardPage = () => {
     const deltaViews = d(redisNow.event_counts.product_viewed, snap.event_counts.product_viewed);
     const deltaCart = d(redisNow.event_counts.cart_added, snap.event_counts.cart_added);
 
-    setRevenue(db.revenue.total_revenue + deltaRev);
-    setTotalOrders(db.event_counts.purchase_completed + deltaOrders);
+    const totalRevenue = db.revenue.total_revenue + deltaRev;
+    const totalOrders = db.event_counts.purchase_completed + deltaOrders;
+
+    setRevenue(totalRevenue);
+    setTotalOrders(totalOrders);
     setFailedPayments(db.event_counts.payment_failed + deltaFailed);
     setTotalEvents(db.event_counts.total + deltaTotal);
     setActiveUsers(redisNow.active_users.active_users);
     setEventData([
       { name: 'Page Views', value: db.event_counts.product_viewed + deltaViews, color: '#8ed5ff' },
       { name: 'Cart Additions', value: db.event_counts.cart_added + deltaCart, color: '#bdc2ff' },
-      { name: 'Purchases', value: db.event_counts.purchase_completed + deltaOrders, color: '#10b981' },
+      { name: 'Purchases', value: totalOrders, color: '#10b981' },
     ]);
-    // Top products always from DB base (most accurate for historical periods)
-    setTopProducts(db.top_products.products.map(p => ({ name: p.product_name, sales: p.purchase_count })));
 
-    // Graph is static for non-session tabs — DB history only, no live appending
+    // Merge live delta into top products so they accumulate too
+    const liveProductMap = new Map(redisNow.top_products.products.map(p => [p.product_name, p.purchase_count]));
+    const snapProductMap = new Map(snap.top_products.products.map(p => [p.product_name, p.purchase_count]));
+    setTopProducts(
+      db.top_products.products.map(p => ({
+        name: p.product_name,
+        sales: p.purchase_count + Math.max(0, (liveProductMap.get(p.product_name) ?? 0) - (snapProductMap.get(p.product_name) ?? 0)),
+      }))
+    );
+
+    // Accumulate a live data point on the revenue graph for non-session periods
+    const liveLabel = getLiveLabel(currentPeriod);
+    setRevenueHistory(prev => {
+      // Replace the last point if it has the same label (same time bucket), otherwise append
+      const last = prev[prev.length - 1];
+      if (last && last.name === liveLabel) {
+        return [...prev.slice(0, -1), { name: liveLabel, revenue: totalRevenue }];
+      }
+      return [...prev, { name: liveLabel, revenue: totalRevenue }].slice(-200);
+    });
+
     setFeedEvents(redisNow.recent_events || []);
   };
 
@@ -178,9 +199,9 @@ const DashboardPage = () => {
         ]);
         dbBase.current = await dbRes.json();
         redisSnapshot.current = await redisRes.json();
-        // Clear old history first, then seed with DB data for this period
+        // Seed graph with full DB history for this period, then append live point immediately
         setRevenueHistory(dbBase.current!.revenue_history || []);
-        applyWithDelta(redisSnapshot.current!);
+        applyWithDelta(redisSnapshot.current!, p);
       }
     } catch {
       setError('Failed to load data');
@@ -202,7 +223,7 @@ const DashboardPage = () => {
         if (period === 'session') {
           applyRedis(data);
         } else {
-          applyWithDelta(data);
+          applyWithDelta(data, period);
         }
         setError(null);
       } catch {
@@ -223,8 +244,19 @@ const DashboardPage = () => {
       setResetMsg('Dashboard reset! Accumulating fresh data...');
       setTimeout(() => setResetMsg(null), 4000);
       startTimer(0);
-      // Switch to Live Session view automatically after reset
-      setPeriod('session');
+      // Always wipe the graph so it starts fresh from zero
+      setRevenueHistory([]);
+      dbBase.current = null;
+      redisSnapshot.current = null;
+      if (period === 'session') {
+        // Already on session — fetchBase won't re-trigger, so manually re-fetch Redis
+        const redisRes = await fetch(`${API_URL}/api/v1/analytics/dashboard`);
+        const redisData: ApiPayload = await redisRes.json();
+        applyRedis(redisData);
+      } else {
+        // Switch to session — fetchBase will fire via useEffect and seed fresh data
+        setPeriod('session');
+      }
     } catch {
       setError('Reset failed');
     } finally {
@@ -293,10 +325,10 @@ const DashboardPage = () => {
             key={p.value}
             onClick={() => setPeriod(p.value)}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${period === p.value
-                ? p.value === 'session'
-                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20'
-                  : 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
-                : 'bg-surface-container text-on-surface-variant border-outline-variant/30 hover:border-primary/50'
+              ? p.value === 'session'
+                ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20'
+                : 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+              : 'bg-surface-container text-on-surface-variant border-outline-variant/30 hover:border-primary/50'
               }`}
           >
             <span className="material-symbols-outlined text-sm">{p.icon}</span>

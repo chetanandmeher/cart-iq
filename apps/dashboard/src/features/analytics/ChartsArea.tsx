@@ -18,6 +18,7 @@ export interface RevenueData {
 
 export interface ChartsAreaProps {
   liveSession?: boolean;
+  period?: string;
   revenueData: RevenueData[];
   topProducts: TopProduct[];
   eventData: EventData[];
