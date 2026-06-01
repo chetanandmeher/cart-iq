@@ -2,9 +2,9 @@ import json
 import logging
 import faust
 
-from app.config import settings
-from app.enums import EventType
-from app.aggregators import (
+from src.config import settings
+from common.enums import EventType
+from src.aggregators import (
     update_revenue,
     update_top_products,
     update_event_counts,

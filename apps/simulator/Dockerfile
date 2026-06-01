@@ -2,8 +2,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN pip install requests redis
+RUN pip install poetry
 
-COPY simulate_events.py .
+COPY apps/simulator/pyproject.toml ./
 
-CMD ["python", "simulate_events.py"]
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --no-root
+
+COPY apps/simulator/src/ ./src/
+
+CMD ["python", "src/simulate_events.py"]

@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, HTTPException
-from app.schemas import CartEvent
-from app.kafka_producer import publish_event
+from common.schemas.cart_event import CartEvent
+from src.kafka_producer import publish_event
 
 
 logger = logging.getLogger(__name__)

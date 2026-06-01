@@ -60,8 +60,6 @@ const DashboardPage = () => {
   const redisSnapshot = useRef<ApiPayload | null>(null);
 
   // ── helpers ────────────────────────────────────────────────────
-  const toIncremental = (history: RevenueData[]): RevenueData[] =>
-    history.map((p, i) => ({ name: p.name, revenue: i === 0 ? p.revenue : Math.max(0, p.revenue - history[i - 1].revenue) }));
 
 
   const getLiveLabel = (p: Period): string => {
@@ -165,10 +163,6 @@ const DashboardPage = () => {
     }, 1000);
   };
 
-  const stopTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setSessionSecs(null);
-  };
 
   useEffect(() => {
     // Fetch session info on mount to restore timer if page refreshed

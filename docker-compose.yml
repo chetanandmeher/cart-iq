@@ -38,7 +38,9 @@ services:
       - "6379:6379"
 
   ingestion:
-    build: ./apps/ingestion
+    build:
+      context: .
+      dockerfile: apps/ingestion/Dockerfile
     ports:
       - "8001:8000"
     environment:
@@ -49,7 +51,9 @@ services:
       - kafka
 
   processor:
-    build: ./apps/processor
+    build:
+      context: .
+      dockerfile: apps/processor/Dockerfile
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC: cartiq_events
@@ -66,7 +70,9 @@ services:
       - postgres
 
   analytics:
-    build: ./apps/analytics
+    build:
+      context: .
+      dockerfile: apps/analytics/Dockerfile
     ports:
       - "8002:8000"
     environment:
@@ -85,7 +91,9 @@ services:
       - kafka
 
   simulator:
-    build: ./apps/simulator
+    build:
+      context: .
+      dockerfile: apps/simulator/Dockerfile
     container_name: cart_iq-simulator-1
     profiles:
       - simulator

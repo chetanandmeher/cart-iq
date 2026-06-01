@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "common"
+version = "0.1.0"
+description = "Shared models and enums for CartIQ microservices"
+authors = ["Chetanand Meher <chetanandmeher1282004@gmail.com>"]
+package-mode = true
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+pydantic = "^2.0.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

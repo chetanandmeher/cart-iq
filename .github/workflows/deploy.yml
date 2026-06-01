@@ -1,0 +1,21 @@
+name: Deploy Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Build Docker images
+      run: |
+        docker build -t cartiq-ingestion:latest -f apps/ingestion/Dockerfile .
+        docker build -t cartiq-processor:latest -f apps/processor/Dockerfile .
+        docker build -t cartiq-analytics:latest -f apps/analytics/Dockerfile .
+
+    - name: Mock Deploy step
+      run: |
+        echo "Images successfully built. Ready to push and deploy!"

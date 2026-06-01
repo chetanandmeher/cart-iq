@@ -3,10 +3,10 @@ import redis
 import json
 from datetime import datetime
 
-from app.config import settings
-from app.enums import EventType, RedisKey
-from app.database import get_session
-from app.models import Event
+from src.config import settings
+from common.enums import EventType, RedisKey
+from src.database import get_session
+from src.models import Event
     
 logger = logging.getLogger(__name__)
 

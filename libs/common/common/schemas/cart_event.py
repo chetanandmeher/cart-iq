@@ -1,16 +1,8 @@
 from pydantic import BaseModel, Field
-from enum import Enum
 from datetime import datetime
 from typing import Optional
 import uuid
-
-
-class EventType(str, Enum):
-    product_viewed = "product_viewed"
-    cart_added = "cart_added"
-    cart_removed = "cart_removed"
-    purchase_completed = "purchase_completed"
-    payment_failed = "payment_failed"
+from common.enums import EventType
 
 
 class CartEvent(BaseModel):

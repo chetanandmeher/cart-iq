@@ -259,42 +259,99 @@ Indexed on `event_type`, `user_id`, `timestamp` for fast analytical queries.
 ## Project Structure
 
 ```
-cartiq/
-├── services/
-│   ├── ingestion/          # FastAPI event intake
-│   │   └── app/
-│   │       ├── main.py
-│   │       ├── routes.py
-│   │       ├── schemas.py
-│   │       ├── kafka_producer.py
-│   │       └── config.py
-│   ├── processor/          # Kafka consumer + Redis aggregator
-│   │   └── app/
-│   │       ├── main.py     # 20-thread consumer
-│   │       ├── agents.py
-│   │       ├── aggregators.py
-│   │       ├── models.py   # SQLAlchemy Event model
-│   │       ├── database.py
-│   │       └── enums.py    # Single source of truth
-│   ├── analytics/          # FastAPI query API + SSE
-│   │   └── app/
-│   │       ├── main.py
-│   │       ├── routes.py
-│   │       ├── schemas.py
-│   │       └── enums.py
-│   └── simulator/          # Load simulator Docker service
-├── dashboard/              # React + TypeScript frontend
-│   └── src/
-│       └── components/
-│           ├── KPICards.tsx
-│           ├── ChartsArea.tsx
-│           ├── LiveFeed.tsx
-│           ├── SimulatorControl.tsx
-│           └── InfraPage.tsx
-├── scripts/
-│   └── simulate_events.py  # Local dev simulator
-├── docker-compose.yml
-└── README.md
+cart_iq/
+├── .github/                        # CI/CD workflows
+│   └── workflows/
+│       ├── ci.yml                  # Test pipeline
+│       └── deploy.yml              # Build & deploy pipeline
+├── apps/                           # Independent microservices
+│   ├── analytics/                  # FastAPI read-only REST API
+│   │   ├── src/                    # Renamed from app/
+│   │   │   ├── main.py
+│   │   │   ├── routes.py           # All dashboard & simulator endpoints
+│   │   │   ├── schemas.py          # Pydantic response models
+│   │   │   ├── config.py
+│   │   │   └── enums.py
+│   │   ├── tests/
+│   │   │   └── test_analytics.py
+│   │   ├── .dockerignore
+│   │   ├── .env.example
+│   │   ├── Dockerfile
+│   │   ├── poetry.lock
+│   │   └── pyproject.toml
+│   ├── dashboard/                  # React 19 + TypeScript + Vite
+│   │   ├── src/
+│   │   │   ├── features/
+│   │   │   │   ├── analytics/      # DashboardPage, KPICards, ChartsArea, LiveFeed
+│   │   │   │   ├── infra/          # InfraPage, LogTerminal
+│   │   │   │   └── simulator/      # SimulatorControl
+│   │   │   ├── layout/             # Sidebar, TopBar
+│   │   │   ├── App.tsx
+│   │   │   └── main.tsx
+│   │   ├── tests/
+│   │   │   └── dashboard.test.tsx
+│   │   ├── .dockerignore
+│   │   ├── Dockerfile              # Multi-stage: Node build → Nginx serve
+│   │   ├── index.html
+│   │   ├── package.json
+│   │   ├── tailwind.config.js
+│   │   └── vite.config.ts
+│   ├── ingestion/                  # FastAPI HTTP → Kafka gateway
+│   │   ├── src/                    # Renamed from app/
+│   │   │   ├── main.py
+│   │   │   ├── routes.py
+│   │   │   ├── kafka_producer.py
+│   │   │   └── config.py
+│   │   ├── tests/
+│   │   │   └── test_ingestion.py
+│   │   ├── .dockerignore
+│   │   ├── .env.example
+│   │   ├── Dockerfile
+│   │   ├── poetry.lock
+│   │   └── pyproject.toml
+│   ├── processor/                  # Kafka consumer → Redis + PostgreSQL
+│   │   ├── src/                    # Renamed from app/
+│   │   │   ├── main.py             # 20-thread consumer loop
+│   │   │   ├── aggregators.py      # All 6 real-time aggregators
+│   │   │   ├── agents.py           # Alt Faust-based consumer (unused)
+│   │   │   ├── models.py           # SQLAlchemy Event model
+│   │   │   ├── database.py
+│   │   │   └── config.py
+│   │   ├── tests/
+│   │   │   └── test_processor.py
+│   │   ├── .dockerignore
+│   │   ├── .env.example
+│   │   ├── Dockerfile
+│   │   ├── poetry.lock
+│   │   └── pyproject.toml
+│   └── simulator/                  # Batched event traffic generator
+│       ├── src/
+│       │   └── simulate_events.py  # 5 sender + 15 user journey threads
+│       ├── .dockerignore
+│       ├── Dockerfile
+│       └── pyproject.toml
+├── libs/                           # Shared code across Python services
+│   └── common/
+│       ├── common/
+│       │   ├── enums.py            # Shared EventType, RedisKey enums
+│       │   └── schemas/
+│       │       └── cart_event.py   # Shared CartEvent Pydantic model
+│       └── pyproject.toml
+├── infra/                          # Infrastructure as Code
+│   ├── k8s/
+│   │   └── deployment.yaml         # Kubernetes deployment manifests
+│   └── terraform/
+│       └── main.tf                 # Cloud provisioning skeleton
+├── docs/                           # Project documentation
+│   ├── architecture/
+│   │   └── CODEBASE_DEEP_DIVE.md   # Full technical reference
+│   ├── assets/                     # Dashboard screenshots
+│   └── CARTIQ_ROADMAP.md
+├── .env.example                    # Root environment variable template
+├── .gitignore
+├── Makefile                        # Task runner (dev, build, test, clean)
+├── README.md
+└── docker-compose.yml              # Full local dev stack
 ```
 
 ---

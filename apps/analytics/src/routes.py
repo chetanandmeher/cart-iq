@@ -11,9 +11,9 @@ import docker
 from fastapi.responses import StreamingResponse
 
 from fastapi import APIRouter, HTTPException, Query
-from app.config import settings
-from app.enums import RedisKey, EventType
-from app.schemas import (
+from src.config import settings
+from common.enums import RedisKey, EventType
+from src.schemas import (
     RevenueResponse,
     TopProductsResponse,
     TopProduct,

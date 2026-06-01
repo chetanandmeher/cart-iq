@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "simulator"
+version = "0.1.0"
+description = "Batched event simulator for CartIQ"
+package-mode = false
+authors = ["Chetanand Meher <chetanandmeher1282004@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+requests = ">=2.31.0"
+redis = ">=5.0.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

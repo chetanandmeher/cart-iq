@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cartiq-ingestion
+  labels:
+    app: cartiq-ingestion
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cartiq-ingestion
+  template:
+    metadata:
+      labels:
+        app: cartiq-ingestion
+    spec:
+      containers:
+      - name: ingestion
+        image: cartiq-ingestion:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-service:9092"
+        - name: KAFKA_TOPIC
+          value: "cartiq_events"
+        - name: DEBUG
+          value: "false"

@@ -1,8 +1,8 @@
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.config import settings
-from app.models import Base
+from src.config import settings
+from src.models import Base
 
 logger = logging.getLogger(__name__)
 

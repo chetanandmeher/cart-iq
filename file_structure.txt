@@ -1,0 +1,89 @@
+cart_iq/
+├── .env
+├── .gitignore
+├── README.md
+├── README_ORIGINAL.md
+├── docker-compose.yml
+├── poetry.lock
+├── pyproject.toml
+├── apps/
+│   ├── analytics/
+│   │   ├── .env
+│   │   ├── Dockerfile
+│   │   ├── poetry.lock
+│   │   ├── pyproject.toml
+│   │   └── app/
+│   │       ├── config.py
+│   │       ├── main.py
+│   │       ├── routes.py
+│   │       └── schemas.py
+│   ├── dashboard/
+│   │   ├── .gitignore
+│   │   ├── README.md
+│   │   ├── eslint.config.js
+│   │   ├── index.html
+│   │   ├── package-lock.json
+│   │   ├── package.json
+│   │   ├── postcss.config.js
+│   │   ├── tailwind.config.js
+│   │   ├── tsconfig.app.json
+│   │   ├── tsconfig.json
+│   │   ├── tsconfig.node.json
+│   │   ├── vite.config.ts
+│   │   ├── public/
+│   │   └── src/
+│   │       ├── App.tsx
+│   │       ├── main.tsx
+│   │       ├── features/
+│   │       │   ├── analytics/
+│   │       │   │   ├── ChartsArea.tsx
+│   │       │   │   ├── DashboardPage.tsx
+│   │       │   │   ├── KPICards.tsx
+│   │       │   │   └── LiveFeed.tsx
+│   │       │   ├── infra/
+│   │       │   │   ├── InfraPage.tsx
+│   │       │   │   └── LogTerminal.tsx
+│   │       │   └── simulator/
+│   │       │       └── SimulatorControl.tsx
+│   │       └── layout/
+│   │           ├── Sidebar.tsx
+│   │           └── TopBar.tsx
+│   ├── ingestion/
+│   │   ├── .env
+│   │   ├── Dockerfile
+│   │   ├── poetry.lock
+│   │   ├── pyproject.toml
+│   │   └── app/
+│   │       ├── config.py
+│   │       ├── kafka_producer.py
+│   │       ├── main.py
+│   │       ├── routes.py
+│   │       └── schemas.py
+│   ├── processor/
+│   │   ├── .env
+│   │   ├── Dockerfile
+│   │   ├── poetry.lock
+│   │   ├── pyproject.toml
+│   │   └── app/
+│   │       ├── agents.py
+│   │       ├── aggregators.py
+│   │       ├── config.py
+│   │       ├── database.py
+│   │       ├── enums.py
+│   │       ├── main.py
+│   │       └── models.py
+│   └── simulator/
+│       ├── Dockerfile
+│       └── simulate_events.py
+├── docs/
+│   ├── CARTIQ_ROADMAP.md
+│   ├── CODEBASE_DEEP_DIVE.md
+│   ├── FRONTEND_CONTEXT.md
+│   ├── _antigravity-caveman-prompt.md_
+│   ├── dashboard_dark.jpg
+│   ├── dashboard_desktop.jpg
+│   ├── dashboard_desktop_new.jpg
+│   └── dashboard_light.jpg
+├── infra/
+└── tools/
+    └── simulate_events.py

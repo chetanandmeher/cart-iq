@@ -86,11 +86,12 @@ const ChartsArea: React.FC<ChartsAreaProps> = ({ revenueData, topProducts, event
               <Tooltip
                 contentStyle={{ backgroundColor: '#171f33', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', color: '#dae2fd' }}
                 itemStyle={{ color: '#38bdf8' }}
-                formatter={(val: number) => {
-                  if (val >= 10000000) return [`₹${(val / 10000000).toFixed(2)}Cr`, 'Revenue'];
-                  if (val >= 100000) return [`₹${(val / 100000).toFixed(2)}L`, 'Revenue'];
-                  if (val >= 1000) return [`₹${(val / 1000).toFixed(1)}k`, 'Revenue'];
-                  return [`₹${val}`, 'Revenue'];
+                formatter={(val: any) => {
+                  const num = Number(val || 0);
+                  if (num >= 10000000) return [`₹${(num / 10000000).toFixed(2)}Cr`, 'Revenue'];
+                  if (num >= 100000) return [`₹${(num / 100000).toFixed(2)}L`, 'Revenue'];
+                  if (num >= 1000) return [`₹${(num / 1000).toFixed(1)}k`, 'Revenue'];
+                  return [`₹${num}`, 'Revenue'];
                 }}
               />
               <Area type="monotone" dataKey="revenue" stroke="#38bdf8" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" style={{ filter: 'drop-shadow(0px 0px 8px rgba(56,189,248,0.3))' }} />

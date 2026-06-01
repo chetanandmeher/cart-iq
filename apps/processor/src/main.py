@@ -9,9 +9,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from kafka import KafkaConsumer
 from kafka.errors import NoBrokersAvailable
-from app.config import settings
-from app.database import init_db
-from app.aggregators import (
+from src.config import settings
+from src.database import init_db
+from src.aggregators import (
     update_revenue,
     update_top_products,
     update_event_counts,
