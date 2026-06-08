@@ -209,15 +209,15 @@ Stop the event simulator.
 ### Start everything
 
 ```bash
-git clone https://github.com/chetanandmeher/cartiq
-cd cartiq
+git clone https://github.com/chetanandmeher/cart-iq
+cd cart-iq
 docker-compose up --build
 ```
 
 ### Start Dashboard
 
 ```bash
-cd dashboard
+cd apps/dashboard
 npm install
 npm run dev
 ```
@@ -233,6 +233,50 @@ npm run dev
 
 ### Start Simulator via Dashboard
 Click the **▶ play button** in the top bar. Events start flowing immediately.
+
+---
+
+## Testing
+
+The project uses a centralized test suite located in the root `tests/` directory.
+
+To run the Python tests, navigate to the specific service directory and use Poetry to execute pytest with the correct configuration:
+
+- **Common Library Tests**:
+  ```bash
+  cd libs/common
+  poetry run pytest -c pyproject.toml ../../tests/common_test/
+  ```
+
+- **Ingestion Service Tests**:
+  ```bash
+  cd apps/ingestion
+  poetry run pytest -c pyproject.toml ../../tests/ingestion_test/
+  ```
+
+- **Processor Service Tests**:
+  ```bash
+  cd apps/processor
+  poetry run pytest -c pyproject.toml ../../tests/processor_test/
+  ```
+
+- **Analytics Service Tests**:
+  ```bash
+  cd apps/analytics
+  poetry run pytest -c pyproject.toml ../../tests/analytics_test/
+  ```
+
+- **Simulator Service Tests**:
+  ```bash
+  cd apps/simulator
+  poetry run pytest -c pyproject.toml ../../tests/simulator_test/
+  ```
+
+- **React Dashboard Frontend Tests**:
+  ```bash
+  cd apps/dashboard
+  npm test
+  ```
 
 ---
 
@@ -271,9 +315,8 @@ cart_iq/
 │   │   │   ├── routes.py           # All dashboard & simulator endpoints
 │   │   │   ├── schemas.py          # Pydantic response models
 │   │   │   ├── config.py
-│   │   │   └── enums.py
-│   │   ├── tests/
-│   │   │   └── test_analytics.py
+│   │   │   ├── models.py           # Empty models file
+│   │   │   └── enums.py            # Legacy/Unused (uses libs/common)
 │   │   ├── .dockerignore
 │   │   ├── .env.example
 │   │   ├── Dockerfile
@@ -288,8 +331,6 @@ cart_iq/
 │   │   │   ├── layout/             # Sidebar, TopBar
 │   │   │   ├── App.tsx
 │   │   │   └── main.tsx
-│   │   ├── tests/
-│   │   │   └── dashboard.test.tsx
 │   │   ├── .dockerignore
 │   │   ├── Dockerfile              # Multi-stage: Node build → Nginx serve
 │   │   ├── index.html
@@ -302,8 +343,6 @@ cart_iq/
 │   │   │   ├── routes.py
 │   │   │   ├── kafka_producer.py
 │   │   │   └── config.py
-│   │   ├── tests/
-│   │   │   └── test_ingestion.py
 │   │   ├── .dockerignore
 │   │   ├── .env.example
 │   │   ├── Dockerfile
@@ -317,8 +356,6 @@ cart_iq/
 │   │   │   ├── models.py           # SQLAlchemy Event model
 │   │   │   ├── database.py
 │   │   │   └── config.py
-│   │   ├── tests/
-│   │   │   └── test_processor.py
 │   │   ├── .dockerignore
 │   │   ├── .env.example
 │   │   ├── Dockerfile
@@ -337,11 +374,22 @@ cart_iq/
 │       │   └── schemas/
 │       │       └── cart_event.py   # Shared CartEvent Pydantic model
 │       └── pyproject.toml
+├── tests/                          # Centralized monorepo test suites
+│   ├── analytics_test/             # Analytics service test cases
+│   ├── common_test/                # Shared common library test cases
+│   ├── dashboard_test/             # React dashboard test cases
+│   ├── ingestion_test/             # Ingestion service test cases
+│   ├── processor_test/             # Processor service test cases
+│   └── simulator_test/             # Simulator service test cases
 ├── infra/                          # Infrastructure as Code
 │   ├── k8s/
 │   │   └── deployment.yaml         # Kubernetes deployment manifests
 │   └── terraform/
 │       └── main.tf                 # Cloud provisioning skeleton
+├── tools/                          # Development utilities
+│   └── simulate_events.py          # Local dev event simulator script
+├── archive/                        # Legacy/archived assets
+│   └── dashboard-old               # Legacy dashboard implementation
 ├── docs/                           # Project documentation
 │   ├── architecture/
 │   │   └── CODEBASE_DEEP_DIVE.md   # Full technical reference
@@ -353,6 +401,7 @@ cart_iq/
 ├── README.md
 └── docker-compose.yml              # Full local dev stack
 ```
+
 
 ---
 

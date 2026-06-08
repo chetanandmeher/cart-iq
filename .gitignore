@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *.pyo
 .venv/
+.coverage
+.coverage.*
+htmlcov/
 
 # Environment
 .env
@@ -23,3 +26,7 @@ Thumbs.db
 # Node
 node_modules/
 dist/
+tests/node_modules/
+
+# IDE
+.vscode/

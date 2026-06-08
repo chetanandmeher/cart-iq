@@ -16,9 +16,12 @@ logs:
 
 test:
 	@echo "Running tests..."
-	poetry run pytest apps/ingestion/tests/
-	poetry run pytest apps/processor/tests/
-	poetry run pytest apps/analytics/tests/
+	cd libs/common && poetry run pytest -c pyproject.toml ../../tests/common_test/
+	cd apps/ingestion && poetry run pytest -c pyproject.toml ../../tests/ingestion_test/
+	cd apps/processor && poetry run pytest -c pyproject.toml ../../tests/processor_test/
+	cd apps/analytics && poetry run pytest -c pyproject.toml ../../tests/analytics_test/
+	cd apps/simulator && poetry run pytest -c pyproject.toml ../../tests/simulator_test/
+	cd apps/dashboard && npm test
 
 clean:
 	docker-compose down -v
